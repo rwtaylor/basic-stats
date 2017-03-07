@@ -4,3 +4,8 @@ work
 outputs
 nextflow
 trace.txt
+.DS_Store
+dag.png
+remove_samples.txt
+temp-remove.txt
+timeline.html
