@@ -23,12 +23,12 @@ sample_groups.each{a ->
 sample_groups.removeAll({ it[1].empty })
 sample_groups_file = file(params.sample_groups)
 
-
-remove_file = file("temp-remove.txt")
-remove_file.text = "temp temp\n"
-params.excludesamples.each{
-  remove_file.append("${it} ${it}\n")
-}
+// This invalidates cache for some reason...
+//
+//
+//
+//
+//
 
 process Plink_bed {
   publishDir 'outputs/plink', mode: 'copy'
@@ -47,9 +47,14 @@ process Plink_bed {
   set prefix, pruned, file("*.bed"), file("*.bim"), file("*.fam") into plink_bed
 
   script:
+  remove_file = file("temp-remove.txt")
+  remove_file.text = "temp temp\n"
+  params.excludesamples.each{
+    remove_file.append("${it} ${it}\n")
+  }
   """
   /usr/local/bin/plink --make-bed --remove ${remove_file} --vcf ${vcf} --allow-extra-chr --out temp
-  /usr/local/bin/plink --make-bed --remove ${remove_file} --set-missing-var-ids @:#\\\$1,\\\$2 --allow-extra-chr --bfile temp --out ${prefix}
+  /usr/local/bin/plink --make-bed --set-missing-var-ids @:#\\\$1,\\\$2 --allow-extra-chr --bfile temp --out ${prefix}
   rm temp.bed temp.bim temp.fam
   """
 }
@@ -75,7 +80,7 @@ process Plink_ld_pruning {
   
   """
   /usr/local/bin/plink --indep 50 5 2 --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}
-  /usr/local/bin/plink --make-bed  --remove ${remove_file} --extract ${prefix}.prune.in --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}.ldpruned
+  /usr/local/bin/plink --make-bed --extract ${prefix}.prune.in --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}.ldpruned
   """
 }
 
