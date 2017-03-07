@@ -1,0 +1,6 @@
+.nextflow
+.nextflow.log*
+work
+outputs
+nextflow
+trace.txt
