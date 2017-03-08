@@ -302,7 +302,7 @@ pop_frq_channel_grouped = pop_stats_outputs_frq_lgmaf.filter{it[3] == "freq"}.gr
 process Venn {
   publishDir 'outputs/plots', mode: 'copy'
 
-  cpus 1
+  cpus 8
   memory {task.attempt == 1 ? 32.GB: 64.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
@@ -316,7 +316,7 @@ process Venn {
   set prefix, pruned, file("*.pdf"), file("*.png") into venn_diagram_out
 
 """
-plot_venn.R "sumatrae,tigris,altaica,jacksoni" ${sample_groups_file} ${traw} ${prefix}${pruned ? '-ldp' : '' }
+plot_venn.R ${task.cpus} sumatrae,tigris,altaica,jacksoni ${sample_groups_file} ${traw} ${prefix}${pruned ? '-ldp' : '' }
 """
 }
 
