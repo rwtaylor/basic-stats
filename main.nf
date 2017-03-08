@@ -149,7 +149,7 @@ process Rf_idx {
   cpus 4
   memory 16.GB
   time 1.h
-  errorStrategy { task.exitStatus == 143 || task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 3
   maxErrors '-1'
 
@@ -175,7 +175,7 @@ process Rf {
   cpus 8
   memory 32.GB
   time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == 143 || task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
   maxErrors '-1'
 
@@ -201,7 +201,7 @@ process Rf_plots {
   cpus 1
   memory 16.GB
   time 2.d
-  errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 7
   maxErrors '-1'
 
@@ -238,7 +238,7 @@ process BasicStats {
   cpus 1
   memory {task.attempt == 1 ? 4.GB: 8.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
   maxErrors '-1'
 
@@ -272,7 +272,7 @@ process PopStats {
   cpus 1
   memory {task.attempt == 1 ? 4.GB: 8.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
   maxErrors '-1'
 
@@ -305,7 +305,7 @@ process Venn {
   cpus 8
   memory {task.attempt == 1 ? 32.GB: 64.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
   maxErrors '-1'
 
@@ -331,7 +331,7 @@ process PlotMAF{
   cpus 1
   memory {task.attempt == 1 ? 32.GB: 64.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == 143 | task.exitStatus == 139 ? 'retry' : 'finish' }
+  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
   maxErrors '-1'
 
