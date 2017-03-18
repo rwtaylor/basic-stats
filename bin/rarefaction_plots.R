@@ -16,8 +16,8 @@ args <- commandArgs(trailingOnly = TRUE)
 ## For testing
 #args <- 1
 #args[1] <- 2
-#args[2] <- "fb-170208-1-snp-qq30-gq30-hwe-ss0.001"
-#setwd("/Volumes/bio-dap15.stanford.edu/zstor/2016-tiger-wgs/basic-stats/bs-test/outputs/rarefaction")
+#args[2] <- "fb-170208-snp-qq30-gq30-hwe-ss0.001"
+#setwd("../outputs/rarefaction")
 ###
 
 load(paste(args[2], ".rf-1.Rdata", sep = ''))

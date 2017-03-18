@@ -1,5 +1,5 @@
 #!/bin/Rscript
-# Saves an R data object with a table 'frq_data'. 'frq_data' has a column for locus, and the minor allele frequency for each population
+# Generates an index of jobs to distribute to bootstrap rarefaction curves.
 # argument 1: character vector of populations <- DOES NOTHING FOR NOW
 # argument 2: integer, maximum number of samples per group size
 # argument 3: integer, number of processors to use
