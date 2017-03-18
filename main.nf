@@ -361,16 +361,16 @@ process Ldak_cut_weights{
   set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_cut_weights
 
   output:
-  file("sections_cut") into ldak_cut_params
-  file("sections_cut/section.number") into section_number_file
+  file("section.number") into section_number_file
+  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") into ldak_cut_params
+  
 
   """
-  /usr/local/bin/ldak5.beta.fast --cut-weights sections_cut --bfile $prefix --section-length 1000
+  /usr/local/bin/ldak5.beta.fast --cut-weights . --bfile $prefix --section-length $params.ldak_section_length
   """
 }
 
 section_numbers = section_number_file.map{file -> 1..file.text.toInteger()}.flatten()
-
 ldak_cut_params.into{ldak_cut_params_for_weights; ldak_cut_params_for_join; ldak_cut_params_for_kinships}
 
 process Ldak_calc_weights{
@@ -382,23 +382,19 @@ process Ldak_calc_weights{
   maxErrors '-1'
 
   input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_weights
-  file("sections_calc") from ldak_cut_params_for_weights
-  each section_number from section_numbers
+  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_weights.first()
+  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_weights.first()
+  val section_number from section_numbers
 
   output:
-  file("sections_calc/weights.${section_number}") into ldak_weights
+  file("weights.${section_number}") into ldak_weights
 
   script:
 
   """
-  /usr/local/bin/ldak5.beta.fast --calc-weights sections_calc --section $section_number --bfile $prefix
+  /usr/local/bin/ldak5.beta.fast --calc-weights . --section $section_number --bfile $prefix
   """
 }
-
-//ldak_weights = ldak_weights.toList().view()
-
-
 
 process Ldak_join_weights {
   publishDir 'outputs/ldak', mode: 'copy'
@@ -410,17 +406,16 @@ process Ldak_join_weights {
 
   input:
   set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_join_weights
-  file("ldak_weights") from ldak_weights.toList().first()
-  file("sections_join") from ldak_cut_params_for_join
+  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_join
+  file("*") from ldak_weights.toList()
 
   output:
-  set file("sections_join") into ldak_joined
+  set file("weights.all"), file("weights.short") into ldak_joined
 
   """
-  /usr/local/bin/ldak5.beta.fast --join-weights $sections_join --bfile $prefix
+  /usr/local/bin/ldak5.beta.fast --join-weights . --bfile $prefix
   """
 }
-
 
 
 process Ldak_calc_kinships{
@@ -433,13 +428,13 @@ process Ldak_calc_kinships{
 
   input:
   set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_kinships
-  file("sections-kinship") from ldak_joined
+  set file("weights.all"), file("weights.short") from ldak_joined
 
   output:
   set prefix, file("*.grm*") into ldak_kinships
 
   """
-  /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights sections-kinship/weights.all --power -0.25 --bfile ${prefix}
+  /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile ${prefix}
   """
 }
 
