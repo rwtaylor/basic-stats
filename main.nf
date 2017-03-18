@@ -1,27 +1,27 @@
 #!/usr/bin/env nextflow
-// Create fastq channel from samples.tsv
-
-input_vcf = Channel.fromPath(params.vcf_file).map { file -> [file.baseName, file] }
-
-input_vcf.into{input_vcf_plink; input_vcf_basicstats; input_vcf_popstats}
-
-include_samples = params.vcfsamplenames
-include_samples.removeAll(params.excludesamples)
 
 sample_groups = []
+samples = []
 file("${params.sample_groups}").readLines().each{line ->
   (sampleID, populationID) = line.split(/\t/)
   sample_groups.push([ "p":populationID, "s":sampleID ])
+  samples.push([sampleID])
 }
 
 sample_groups = sample_groups.groupBy({it -> it.p}).collectEntries{[it.key, it.value.s]}
 sample_groups = sample_groups.collect { key, value -> [key, value] }
 sample_groups.each{a -> 
   a[1].removeAll(params.excludesamples)
-  a[1].retainAll(params.vcfsamplenames)
 }
 sample_groups.removeAll({ it[1].empty })
 sample_groups_file = file(params.sample_groups)
+
+println(sample_groups)
+println(samples)
+
+input_vcf = Channel.fromPath(params.vcf_file).map { file -> [file.baseName, file] }
+input_vcf = input_vcf.view()
+input_vcf.into{input_vcf_plink; input_vcf_basicstats; input_vcf_popstats}
 
 process Plink_bed {
   publishDir 'outputs/plink', mode: 'copy'
@@ -46,8 +46,8 @@ process Plink_bed {
     remove_file.append("${it} ${it}\n")
   }
   """
-  /usr/local/bin/plink --make-bed --remove ${remove_file} --vcf ${vcf} --allow-extra-chr --out temp
-  /usr/local/bin/plink --make-bed --set-missing-var-ids @:#\\\$1,\\\$2 --allow-extra-chr --bfile temp --out ${prefix}
+  /usr/local/bin/plink --make-bed --remove $remove_file --vcf $vcf --allow-extra-chr --out temp
+  /usr/local/bin/plink --make-bed --set-missing-var-ids @:#\\\$1,\\\$2 --allow-extra-chr --bfile temp --out $prefix
   rm temp.bed temp.bim temp.fam
   """
 }
@@ -72,8 +72,8 @@ process Plink_ld_pruning {
   set prefix, file("*.prune.in"), file("*.prune.out") into plink_pruned
   
   """
-  /usr/local/bin/plink --indep 50 5 2 --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}
-  /usr/local/bin/plink --make-bed --extract ${prefix}.prune.in --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}.ldpruned
+  /usr/local/bin/plink --indep 50 5 2 --allow-extra-chr --bed $bed --bim $bim --fam $fam --out $prefix
+  /usr/local/bin/plink --make-bed --extract ${prefix}.prune.in --allow-extra-chr --bed $bed --bim $bim --fam $fam --out ${prefix}.ldpruned
   """
 }
 
@@ -94,10 +94,6 @@ plink_basicstats =
   ['param':'make-rel'            , 'ext':'rel*'],
   ['param':'make-grm-gz no-gz' , 'ext':'grm*']]
 
-
-
-
-
 process Plink_stats {
   publishDir 'outputs/plink_stats', mode: 'copy'
   tag {task.attempt + "." + plink_basicstat.param}
@@ -113,10 +109,10 @@ process Plink_stats {
   each plink_basicstat from plink_basicstats
 
   output:
-  set prefix, val("${plink_basicstat.param}"), file("*.${plink_basicstat.ext}") into plink_basicstats_outputs
+  set prefix, val("$plink_basicstat.param"), file("*.${plink_basicstat.ext}") into plink_basicstats_outputs
 
   """
-  /usr/local/bin/plink --${plink_basicstat.param} --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}
+  /usr/local/bin/plink --${plink_basicstat.param} --allow-extra-chr --bed $bed --bim $bim --fam $fam --out $prefix
   """
 }
 
@@ -137,12 +133,12 @@ process Plink_traw {
   set prefix, file("*.traw") into plink_traw
 
   """
-  /usr/local/bin/plink --recode A-transpose --allow-extra-chr --bed ${bed} --bim ${bim} --fam ${fam} --out ${prefix}
+  /usr/local/bin/plink --recode A-transpose --allow-extra-chr --bed $bed --bim $bim --fam $fam --out $prefix
   """
 }
 
 plink_traw.into{plink_traw_idx; plink_traw_venn; plink_traw}
-/*
+
 process Rf_idx {
   publishDir 'outputs/rarefaction', mode: 'copy'
   tag {prefix + (pruned ? '-ldp' : '' )}
@@ -160,7 +156,7 @@ process Rf_idx {
   set prefix, file("*.Rdata") into rarefaction_index
 
   """
-  rarefaction_index.R "SPACEHOLDER" 100 4 ${sample_groups_file} ${traw} ${prefix}
+  rarefaction_index.R "SPACEHOLDER" 100 4 $sample_groups_file $traw $prefix
   """
 }
 
@@ -188,7 +184,7 @@ process Rf_batches {
   set prefix, ntasks, file("*.Rdata") into rarefaction_batches
 
   """
-  rarefaction.R ${task_number} ${ntasks} ${task.cpus} ${traw} ${rfi} ${prefix}
+  rarefaction.R $task_number $ntasks $task.cpus $traw $rfi $prefix
   """
 }
 //rarefaction_data = rarefaction_data.view()
@@ -212,10 +208,10 @@ process Rf_plots {
   set prefix, file("*.png"), file("*.pdf"), file("*.rf_concat.Rdata") into rarefaction_plots
 
   """
-  rarefaction_plots.R ${ntasks} ${prefix}
+  rarefaction_plots.R $ntasks $prefix
   """
 }
-*/
+
 
 vcftools_basicstats =
    [['param':'counts'         , 'ext':'frq.count'],
@@ -249,8 +245,11 @@ process BasicStats {
   output:
   set prefix, val("${basicstat.param}"), file("*.${basicstat.ext}") into basic_stats_outputs
 
+  script:
+  removeindividuals = params.excludesamples.collect{"--remove-indv $it"}.join(" ")  
+
 """
-/usr/local/bin/vcftools --vcf ${vcf} --${basicstat.param} --out ${prefix}-all
+/usr/local/bin/vcftools --vcf $vcf --${basicstat.param} $removeindividuals --out ${prefix}-all
 """
 }
 
@@ -282,13 +281,14 @@ process PopStats {
   each popstat from vcftools_popstats
 
   output:
-  set prefix, val("${sample_group[0]}"), val("${popstat.param}"), file("*.${popstat.ext}") into pop_stats_outputs
+  set prefix, val("${sample_group[0]}"), val("$popstat.param"), file("*.${popstat.ext}") into pop_stats_outputs
 
   script:
   keep_samples = sample_group[1].collect{"--indv $it"}.join(' ')
+  removeindividuals = params.excludesamples.collect{"--remove-indv $it"}.join(" ")  
 
 """
-/usr/local/bin/vcftools --vcf ${vcf} ${keep_samples} --${popstat.param} --out ${prefix}-${sample_group[0]}
+/usr/local/bin/vcftools --vcf $vcf $keep_samples $removeindividuals --${popstat.param} --out ${prefix}-${sample_group[0]}
 """
 }
 
@@ -316,7 +316,7 @@ process Venn {
   set prefix, file("*.pdf"), file("*.png") into venn_diagram_out
 
 """
-plot_venn.R ${task.cpus} sumatrae,tigris,altaica,jacksoni ${sample_groups_file} ${traw} ${prefix}
+plot_venn.R $task.cpus sumatrae,tigris,altaica,jacksoni $sample_groups_file $traw $prefix
 """
 }
 
@@ -417,7 +417,6 @@ process Ldak_join_weights {
   """
 }
 
-
 process Ldak_calc_kinships{
   publishDir 'outputs/ldak', mode: 'copy'
   clusterOptions = "-N 1"
@@ -434,7 +433,7 @@ process Ldak_calc_kinships{
   set prefix, file("*.grm*") into ldak_kinships
 
   """
-  /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile ${prefix}
+  /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile $prefix
   """
 }
 
@@ -458,78 +457,6 @@ process Ldak_pca {
   /usr/local/bin/ldak5.beta.fast --calc-pca-loads $prefix --pcastem $prefix --grm $prefix --bfile $prefix
   """
 }
-
-/*
-all_sq_channel = basic_stats_outputs_sq.filter{it[2] == "site-quality"}.map{a,b,c,d -> [a,b,d]}
-//all_sq_channel = all_sq_channel.view()
-all_smd_channel = basic_stats_outputs_smd.filter{it[2] == "site-mean-depth"}.map{a,b,c,d -> [a,b,d]}
-//all_smd_channel = all_smd_channel.view()
-pq_channel = all_sq_channel.phase(all_smd_channel).view()
-
-process PlotQUAL{
-  publishDir 'outputs/plots', mode: 'copy'
-
-  memory { 32.GB * task.attempt}
-  time { 24.h * task.attempt }
-  errorStrategy { task.exitStatus == 143 ? 'retry' : 'finish' }
-  maxRetries 1
-  maxErrors '-1'
-
-  input:
-  set prefix, file(sq), file(smd) from pq_channel
-
-  output:
-  file("*.png") into plot_qual_png
-  file("*.pdf") into plot_qual_pdf
-
-  """
-  plot_qual_depth.R ${prefix} ${sq} ${smd}
-  """
-}
-
-process Vcfstats {
-  publishDir 'outputs', mode: 'copy'
-  tag {prefix}
-  cpus 1
-  memory 4.GB
-  time 2.d
-  errorStrategy { task.exitStatus == 143 ? 'retry' : 'finish' }
-  maxRetries 7
-  maxErrors '-1'
-
-  input:
-  set file(vcf), filterset from vcfstats_filtered_vcf
-
-  output:
-  set file("*.stats"), filterset into filtered_stats
-
-  """
-  /usr/local/opt/vcflib/bin/vcfstats ${vcf} > ${params.output_prefix}-snp-q${filterset.minqual}-gq${filterset.mingq}.stats
-  """
-}
-*/
-/*
-process Vcf2tsv {
-  publishDir 'outputs', mode: 'copy'
-  tag {prefix}
-  cpus 1
-  memory 4.GB
-  time 2.d
-  errorStrategy { task.exitStatus == 143 ? 'retry' : 'finish' }
-  maxRetries 7
-  maxErrors '-1'
-
-  input:
-  set file(vcf), filterset from vcf2tsv_filtered_vcf
-
-  output:
-  set file("*.tsv"), filterset into filtered_tsv
-
-  """
-  /usr/local/opt/vcflib/bin/vcf2tsv -n "NA" -g ${vcf} > ${params.output_prefix}-snp-q${filterset.minqual}-gq${filterset.mingq}.tsv
-  """
-}
-*/
 
 workflow.onComplete {
   println "Pipeline completed at: $workflow.complete"
