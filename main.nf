@@ -376,6 +376,9 @@ ldak_cut_params.into{ldak_cut_params_for_weights; ldak_cut_params_for_join; ldak
 process Ldak_calc_weights{
   publishDir 'outputs/ldak', mode: 'copy'
   clusterOptions = "-N 1"
+  
+  cpus 1
+  memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
@@ -399,6 +402,9 @@ process Ldak_calc_weights{
 process Ldak_join_weights {
   publishDir 'outputs/ldak', mode: 'copy'
   clusterOptions = "-N 1"
+
+  cpus 1
+  memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
@@ -420,6 +426,9 @@ process Ldak_join_weights {
 process Ldak_calc_kinships{
   publishDir 'outputs/ldak', mode: 'copy'
   clusterOptions = "-N 1"
+
+  cpus 1
+  memory {task.attempt == 1 ? 8.GB: 32.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
@@ -440,6 +449,9 @@ process Ldak_calc_kinships{
 process Ldak_pca {
   publishDir 'outputs/ldak', mode: 'copy'
   clusterOptions = "-N 1"
+
+  cpus 1
+  memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
   maxRetries 1
