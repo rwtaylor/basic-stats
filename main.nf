@@ -146,7 +146,7 @@ process Rf_idx {
   memory 16.GB
   time 1.h
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 3
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -172,7 +172,7 @@ process Rf_batches {
   memory 32.GB
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -235,7 +235,7 @@ process BasicStats {
   memory {task.attempt == 1 ? 4.GB: 8.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -272,7 +272,7 @@ process PopStats {
   memory {task.attempt == 1 ? 4.GB: 8.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -306,7 +306,7 @@ process Venn {
   memory {task.attempt == 1 ? 32.GB: 64.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -332,7 +332,7 @@ process PlotMAF {
   memory {task.attempt == 1 ? 32.GB: 64.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -354,7 +354,7 @@ process Ldak_cut_weights{
   clusterOptions = "-N 1"
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -381,7 +381,7 @@ process Ldak_calc_weights{
   memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -407,7 +407,7 @@ process Ldak_join_weights {
   memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -431,7 +431,7 @@ process Ldak_calc_kinships{
   memory {task.attempt == 1 ? 8.GB: 32.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
@@ -454,7 +454,7 @@ process Ldak_pca {
   memory {task.attempt == 1 ? 4.GB: 16.GB}
   time {task.attempt == 1 ? 6.h: 24.h}
   errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 1
+  maxRetries 5
   maxErrors '-1'
 
   input:
