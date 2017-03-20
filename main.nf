@@ -94,26 +94,28 @@ plink_basicstats =
   ['param':'make-rel'            , 'ext':'rel*'],
   ['param':'make-grm-gz no-gz' , 'ext':'grm*']]
 
-process Plink_stats {
-  publishDir 'outputs/plink_stats', mode: 'copy'
-  tag {task.attempt + "." + plink_basicstat.param}
-  cpus 1
-  memory 4.GB
-  time 1.h
-  errorStrategy { task.exitStatus == 143 ? 'retry' : 'finish' }
-  maxRetries 7
-  maxErrors '-1'
+if(params.run_plink_stats){
+  process Plink_stats {
+    publishDir 'outputs/plink_stats', mode: 'copy'
+    tag {task.attempt + "." + plink_basicstat.param}
+    cpus 1
+    memory 4.GB
+    time 1.h
+    errorStrategy { task.exitStatus == 143 ? 'retry' : 'finish' }
+    maxRetries 7
+    maxErrors '-1'
 
-  input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_stats
-  each plink_basicstat from plink_basicstats
+    input:
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_stats
+    each plink_basicstat from params.plink_basicstats
 
-  output:
-  set prefix, val("$plink_basicstat.param"), file("*.${plink_basicstat.ext}") into plink_basicstats_outputs
+    output:
+    set prefix, val("$plink_basicstat.param"), file("*.${plink_basicstat.ext}") into plink_basicstats_outputs
 
-  """
-  /usr/local/bin/plink --${plink_basicstat.param} --allow-extra-chr --bed $bed --bim $bim --fam $fam --out $prefix
-  """
+    """
+    /usr/local/bin/plink --${plink_basicstat.param} --allow-extra-chr --bed $bed --bim $bim --fam $fam --out $prefix
+    """
+  }
 }
 
 process Plink_traw {
@@ -139,6 +141,7 @@ process Plink_traw {
 
 plink_traw.into{plink_traw_idx; plink_traw_venn; plink_traw}
 
+if(params.run_rarefaction){
 process Rf_idx {
   publishDir 'outputs/rarefaction', mode: 'copy'
   tag {prefix + (pruned ? '-ldp' : '' )}
@@ -211,7 +214,7 @@ process Rf_plots {
   rarefaction_plots.R $ntasks $prefix
   """
 }
-
+}
 
 vcftools_basicstats =
    [['param':'counts'         , 'ext':'frq.count'],
@@ -227,6 +230,7 @@ vcftools_basicstats =
     ['param':'freq'           , 'ext':'frq'],
     ['param':'site-quality'   , 'ext':'lqual']]
 
+if(params.run_vcftools_basicstats){
 process BasicStats {
   publishDir 'outputs/basic_stats', mode: 'copy'
   tag {prefix + "-all-" + basicstat.param}
@@ -240,7 +244,7 @@ process BasicStats {
 
   input:
   set prefix, file(vcf) from input_vcf_basicstats
-  each basicstat from vcftools_basicstats
+  each basicstat from params.vcftools_basicstats
 
   output:
   set prefix, val("${basicstat.param}"), file("*.${basicstat.ext}") into basic_stats_outputs
@@ -254,16 +258,9 @@ process BasicStats {
 }
 
 basic_stats_outputs.into{basic_stats_outputs_frq; basic_stats_outputs_sq; basic_stats_outputs_smd}
+}
 
-vcftools_popstats =
-   [['param':'counts'         , 'ext':'frq.count'],
-    ['param':'depth'          , 'ext':'idepth'],
-    ['param':'site-depth'     , 'ext':'ldepth'],
-    ['param':'site-mean-depth', 'ext':'ldepth.mean'],
-    ['param':'geno-depth'     , 'ext':'gdepth'],
-    ['param':'het'            , 'ext':'het'],
-    ['param':'freq'           , 'ext':'frq']]
-
+if(params.run_vcftools_popstats){
 process PopStats {
   publishDir 'outputs/pop_stats', mode: 'copy'
   tag {prefix + "-" + sample_group[0] + "-" + popstat.param}
@@ -278,7 +275,7 @@ process PopStats {
   input:
   set prefix, file(vcf) from input_vcf_popstats
   each sample_group from sample_groups
-  each popstat from vcftools_popstats
+  each popstat from params.vcftools_popstats
 
   output:
   set prefix, val("${sample_group[0]}"), val("$popstat.param"), file("*.${popstat.ext}") into pop_stats_outputs
@@ -298,6 +295,7 @@ pop_stats_outputs_frq.into{pop_stats_outputs_frq_lgmaf; pop_stats_outputs_frq_ma
 //pop_stats_outputs_frq_lgmaf = pop_stats_outputs_frq_lgmaf.view()
 
 pop_frq_channel_grouped = pop_stats_outputs_frq_lgmaf.filter{it[3] == "freq"}.groupTuple(by: [0,1]).map{a,b,c,d,e -> [a,b,c,e]}
+}
 
 process Venn {
   publishDir 'outputs/plots', mode: 'copy'
