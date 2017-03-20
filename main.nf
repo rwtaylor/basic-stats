@@ -318,10 +318,17 @@ plot_venn.R $task.cpus sumatrae,tigris,altaica,jacksoni $sample_groups_file $tra
 """
 }
 
-all_frq_channel = basic_stats_outputs_frq.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
-pop_frq_channel = pop_stats_outputs_frq_maf.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
+if(params.run_vcftools_basicstats && params.run_vcftools_popstats){
+  all_frq_channel = basic_stats_outputs_frq.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
+  pop_frq_channel = pop_stats_outputs_frq_maf.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
+  frq_channel = pop_frq_channel.mix(all_frq_channel)
+} else if(params.run_vcftools_basicstats && !params.run_vcftools_popstats){
+  frq_channel = basic_stats_outputs_frq.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
+} else if(params.run_vcftools_popstats && !params.run_vcftools_basicstats){
+  frq_channel = pop_stats_outputs_frq_maf.filter{it[3] == "freq"}.map{a,b,c,d,e -> [a,b,c,e]}
+}
 
-frq_channel = pop_frq_channel.mix(all_frq_channel)
+if(params.run_vcftools_basicstats || params.run_vcftools_popstats){
 
 process PlotMAF {
   publishDir 'outputs/plots', mode: 'copy'
@@ -344,7 +351,7 @@ process PlotMAF {
   plot_maf.R ${prefix}-${population} ${frq}
   """
 }
-
+}
 if(params.run_ldak){
   plink_bed_ldak.into{ plink_bed_ldak_cut_weights; plink_bed_ldak_calc_weights; plink_bed_ldak_join_weights; plink_bed_ldak_calc_kinships; plink_bed_ldak_pca }
 
