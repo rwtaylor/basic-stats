@@ -347,137 +347,131 @@ process PlotMAF {
   """
 }
 
-plink_bed_ldak.into{ plink_bed_ldak_cut_weights; plink_bed_ldak_calc_weights; plink_bed_ldak_join_weights; plink_bed_ldak_calc_kinships; plink_bed_ldak_pca }
+if(params.run_ldak){
+  plink_bed_ldak.into{ plink_bed_ldak_cut_weights; plink_bed_ldak_calc_weights; plink_bed_ldak_join_weights; plink_bed_ldak_calc_kinships; plink_bed_ldak_pca }
 
-process Ldak_cut_weights{
-  publishDir 'outputs/ldak', mode: 'copy'
-  clusterOptions = "-N 1"
-  time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 5
-  maxErrors '-1'
+  process Ldak_cut_weights{
+    publishDir 'outputs/ldak', mode: 'copy'
+    clusterOptions = "-N 1"
+    time {task.attempt == 1 ? 6.h: 24.h}
+    errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
+    maxRetries 5
+    maxErrors '-1'
 
-  input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_cut_weights
+    input:
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_cut_weights
 
-  output:
-  file("section.number") into section_number_file
-  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") into ldak_cut_params
+    output:
+    file("section.number") into section_number_file
+    set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") into ldak_cut_params
 
-  when: params.run_ldak
+    """
+    /usr/local/bin/ldak5.beta.fast --cut-weights . --bfile $prefix --section-length $params.ldak_section_length
+    """
+  }
 
-  """
-  /usr/local/bin/ldak5.beta.fast --cut-weights . --bfile $prefix --section-length $params.ldak_section_length
-  """
-}
+  section_numbers = section_number_file.map{file -> 1..file.text.toInteger()}.flatten()
+  ldak_cut_params.into{ldak_cut_params_for_weights; ldak_cut_params_for_join; ldak_cut_params_for_kinships}
 
-section_numbers = section_number_file.map{file -> 1..file.text.toInteger()}.flatten()
-ldak_cut_params.into{ldak_cut_params_for_weights; ldak_cut_params_for_join; ldak_cut_params_for_kinships}
-
-process Ldak_calc_weights{
-  publishDir 'outputs/ldak', mode: 'copy'
-  clusterOptions = "-N 1"
+  process Ldak_calc_weights {
+    publishDir 'outputs/ldak', mode: 'copy'
+    clusterOptions = "-N 1"
   
-  cpus 1
-  memory {task.attempt == 1 ? 4.GB: 16.GB}
-  time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 5
-  maxErrors '-1'
+    cpus 1
+    memory {task.attempt == 1 ? 4.GB: 16.GB}
+    time {task.attempt == 1 ? 6.h: 24.h}
+    errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
+    maxRetries 5
+    maxErrors '-1'
 
-  input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_weights.first()
-  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_weights.first()
-  val section_number from section_numbers
+    input:
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_weights.first()
+    set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_weights.first()
+    val section_number from section_numbers
 
-  output:
-  file("weights.${section_number}") into ldak_weights
+    output:
+    file("weights.${section_number}") into ldak_weights
 
-  when: params.run_ldak
+    script:
 
-  script:
+    """
+    /usr/local/bin/ldak5.beta.fast --calc-weights . --section $section_number --bfile $prefix
+    """
+  }
 
-  """
-  /usr/local/bin/ldak5.beta.fast --calc-weights . --section $section_number --bfile $prefix
-  """
+  process Ldak_join_weights {
+    publishDir 'outputs/ldak', mode: 'copy'
+    clusterOptions = "-N 1"
+
+    cpus 1
+    memory {task.attempt == 1 ? 4.GB: 16.GB}
+    time {task.attempt == 1 ? 6.h: 24.h}
+    errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
+    maxRetries 5
+    maxErrors '-1'
+
+    input:
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_join_weights
+    set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_join
+    file("*") from ldak_weights.toList()
+
+    output:
+    set file("weights.all"), file("weights.short") into ldak_joined
+
+    """
+    /usr/local/bin/ldak5.beta.fast --join-weights . --bfile $prefix
+    """
+  }
+
+  process Ldak_calc_kinships{
+    publishDir 'outputs/ldak', mode: 'copy'
+    clusterOptions = "-N 1"
+
+    cpus 1
+    memory {task.attempt == 1 ? 8.GB: 32.GB}
+    time {task.attempt == 1 ? 6.h: 24.h}
+    errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
+    maxRetries 5
+    maxErrors '-1'
+
+    input:
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_kinships
+    set file("weights.all"), file("weights.short") from ldak_joined
+
+    output:
+    set prefix, file("*.grm*") into ldak_kinships
+
+    """
+    /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile $prefix
+    """
+  }
+
+  process Ldak_pca {
+    publishDir 'outputs/ldak', mode: 'copy'
+    clusterOptions = "-N 1"
+
+    cpus 1
+    memory {task.attempt == 1 ? 4.GB: 16.GB}
+    time {task.attempt == 1 ? 6.h: 24.h}
+    errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
+    maxRetries 5
+    maxErrors '-1'
+
+    input:
+    set prefix, file(grm) from ldak_kinships
+    set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_pca
+
+    output:
+    set file("*.vect"), file("*.values"), file("*.load"), file("*.proj") into ldak_pca
+
+    """
+    /usr/local/bin/ldak5.beta.fast --pca $prefix --grm $prefix
+    /usr/local/bin/ldak5.beta.fast --calc-pca-loads $prefix --pcastem $prefix --grm $prefix --bfile $prefix
+    """
+  }
+
 }
 
-process Ldak_join_weights {
-  publishDir 'outputs/ldak', mode: 'copy'
-  clusterOptions = "-N 1"
-
-  cpus 1
-  memory {task.attempt == 1 ? 4.GB: 16.GB}
-  time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 5
-  maxErrors '-1'
-
-  input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_join_weights
-  set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") from ldak_cut_params_for_join
-  file("*") from ldak_weights.toList()
-
-  output:
-  set file("weights.all"), file("weights.short") into ldak_joined
-
-  when: params.run_ldak
-
-  """
-  /usr/local/bin/ldak5.beta.fast --join-weights . --bfile $prefix
-  """
-}
-
-process Ldak_calc_kinships{
-  publishDir 'outputs/ldak', mode: 'copy'
-  clusterOptions = "-N 1"
-
-  cpus 1
-  memory {task.attempt == 1 ? 8.GB: 32.GB}
-  time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 5
-  maxErrors '-1'
-
-  input:
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_calc_kinships
-  set file("weights.all"), file("weights.short") from ldak_joined
-
-  output:
-  set prefix, file("*.grm*") into ldak_kinships
-
-  when: params.run_ldak
-
-  """
-  /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile $prefix
-  """
-}
-
-process Ldak_pca {
-  publishDir 'outputs/ldak', mode: 'copy'
-  clusterOptions = "-N 1"
-
-  cpus 1
-  memory {task.attempt == 1 ? 4.GB: 16.GB}
-  time {task.attempt == 1 ? 6.h: 24.h}
-  errorStrategy { task.exitStatus == (143 | 139) ? 'retry' : 'finish' }
-  maxRetries 5
-  maxErrors '-1'
-
-  input:
-  set prefix, file(grm) from ldak_kinships
-  set prefix, file(bed), file(bim), file(fam) from plink_bed_ldak_pca
-
-  output:
-  set file("*.vect"), file("*.values"), file("*.load"), file("*.proj") into ldak_pca
-
-  when: params.run_ldak
-
-  """
-  /usr/local/bin/ldak5.beta.fast --pca $prefix --grm $prefix
-  /usr/local/bin/ldak5.beta.fast --calc-pca-loads $prefix --pcastem $prefix --grm $prefix --bfile $prefix
-  """
-}
 
 workflow.onComplete {
   println "Pipeline completed at: $workflow.complete"
