@@ -363,7 +363,8 @@ process Ldak_cut_weights{
   output:
   file("section.number") into section_number_file
   set file("section.details"), file("section.number"), file("thin.in"), file("thin.out"), file("thin.progress"), file("weights.predictors") into ldak_cut_params
-  
+
+  when: params.run_ldak
 
   """
   /usr/local/bin/ldak5.beta.fast --cut-weights . --bfile $prefix --section-length $params.ldak_section_length
@@ -392,6 +393,8 @@ process Ldak_calc_weights{
   output:
   file("weights.${section_number}") into ldak_weights
 
+  when: params.run_ldak
+
   script:
 
   """
@@ -418,6 +421,8 @@ process Ldak_join_weights {
   output:
   set file("weights.all"), file("weights.short") into ldak_joined
 
+  when: params.run_ldak
+
   """
   /usr/local/bin/ldak5.beta.fast --join-weights . --bfile $prefix
   """
@@ -441,6 +446,8 @@ process Ldak_calc_kinships{
   output:
   set prefix, file("*.grm*") into ldak_kinships
 
+  when: params.run_ldak
+
   """
   /usr/local/bin/ldak5.beta.fast --calc-kins-direct $prefix --kinship-raw YES --weights weights.all --power -0.25 --bfile $prefix
   """
@@ -463,6 +470,8 @@ process Ldak_pca {
 
   output:
   set file("*.vect"), file("*.values"), file("*.load"), file("*.proj") into ldak_pca
+
+  when: params.run_ldak
 
   """
   /usr/local/bin/ldak5.beta.fast --pca $prefix --grm $prefix
